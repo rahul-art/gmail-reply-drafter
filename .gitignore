@@ -1,0 +1,7 @@
+credentials.json
+token.json
+mismatches.csv
+__pycache__/
+.venv/
+.DS_Store
+.env

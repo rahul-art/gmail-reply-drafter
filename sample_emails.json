@@ -1,0 +1,30 @@
+[
+  {
+    "id": "s1",
+    "from": "Dana Whitfield <dana@example.com>",
+    "subject": "Leaking pipe under kitchen sink",
+    "body": "Hi, I've got a slow leak under my kitchen sink in Springfield. How much would it cost to fix? I'm free most afternoons this week.",
+    "expected_template": "new_quote"
+  },
+  {
+    "id": "s2",
+    "from": "Marcus Lee <marcus@example.com>",
+    "subject": "quote?",
+    "body": "Need a plumber. How much?",
+    "expected_template": "need_more_info"
+  },
+  {
+    "id": "s3",
+    "from": "Ana Ruiz <ana@example.com>",
+    "subject": "Boiler install in Capital City",
+    "body": "Hello, we're in Capital City and need a new boiler installed. Can you quote?",
+    "expected_template": "out_of_area"
+  },
+  {
+    "id": "s4",
+    "from": "Tom Becker <tom@example.com>",
+    "subject": "Re: Invoice #1042",
+    "body": "Hi, I was charged twice on invoice 1042. Can you refund the second payment to my new bank account?",
+    "expected_template": "ESCALATE"
+  }
+]

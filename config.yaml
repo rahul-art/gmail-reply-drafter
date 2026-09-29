@@ -1,0 +1,34 @@
+# Client config — filled from a (sample) mapping session.
+client:
+  name: "Acme Plumbing (sample client)"
+  reviewer: "Priya"            # the human who reviews and sends every draft
+  signature: "Priya\nAcme Plumbing | (555) 010-2233"
+
+workflow:
+  id: quote_request_replies
+  gmail_query: "is:unread newer_than:7d -category:promotions"
+  max_emails_per_run: 20
+  label_after_draft: "AI-Drafted"   # label added so nothing is drafted twice
+
+model:
+  provider: anthropic
+  name: "claude-sonnet-4-5"        # change to any current Claude model
+  max_tokens: 800
+
+templates:
+  - id: new_quote
+    file: templates/new_quote.md
+    use_when: "Customer asks for a price or quote for a job."
+  - id: need_more_info
+    file: templates/need_more_info.md
+    use_when: "Customer request is too vague to quote (no address, no job details, no photos)."
+  - id: out_of_area
+    file: templates/out_of_area.md
+    use_when: "Customer location is outside the service area."
+
+service_area: ["Springfield", "Shelbyville", "Ogdenville"]
+
+# Hard rules. The code enforces these too; they're repeated here so the reviewer can see them.
+guardrails:
+  never_send: true                 # drafts only; a human sends
+  escalate_if: ["invoice", "refund", "payment", "bank", "complaint", "legal", "contract"]

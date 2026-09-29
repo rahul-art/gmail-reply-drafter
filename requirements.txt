@@ -1,0 +1,4 @@
+anthropic>=0.40
+pyyaml>=6.0
+google-api-python-client>=2.100
+google-auth-oauthlib>=1.2
