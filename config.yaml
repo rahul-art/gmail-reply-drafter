@@ -11,8 +11,9 @@ workflow:
   label_after_draft: "AI-Drafted"   # label added so nothing is drafted twice
 
 model:
-  provider: anthropic
-  name: "claude-sonnet-4-5"        # change to any current Claude model
+  provider: gemini                 # gemini (primary, fallback to claude)
+  gemini_name: "gemini-3.1-flash-lite"
+  name: "claude-sonnet-4-5"        # Claude fallback model
   max_tokens: 800
 
 templates:

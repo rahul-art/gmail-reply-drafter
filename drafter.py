@@ -22,18 +22,30 @@ import argparse
 import base64
 import csv
 import json
+import os
 import re
 import string
 import sys
+import time
 from dataclasses import dataclass, field
 from email.mime.text import MIMEText
 from email.utils import parseaddr
 from pathlib import Path
 
+import requests
 import yaml
 
 ROOT = Path(__file__).parent
 ESCALATE = "ESCALATE"
+
+# Auto-load .env if present
+env_file = ROOT / ".env"
+if env_file.exists():
+    for line in env_file.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, v = line.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip().strip("'\""))
 
 
 # ---------- config & templates ----------
@@ -121,6 +133,79 @@ def system_prompt(cfg: dict) -> str:
     return "\n".join(lines)
 
 
+def decide_with_gemini(email: Email, cfg: dict) -> Decision:
+    gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    if not gemini_key:
+        raise ValueError("GEMINI_API_KEY environment variable not set")
+
+    ids = [t["id"] for t in cfg["templates"]] + [ESCALATE]
+    all_fields = sorted({f for t in cfg["templates"] for f in t["fields"]})
+
+    schema = {
+        "type": "OBJECT",
+        "properties": {
+            "template_id": {"type": "STRING", "enum": ids},
+            "fields": {
+                "type": "OBJECT",
+                "properties": {f: {"type": "STRING"} for f in all_fields},
+            },
+            "reason": {"type": "STRING"},
+        },
+        "required": ["template_id", "fields", "reason"],
+    }
+
+    primary = cfg.get("model", {}).get("gemini_name", "gemini-3.1-flash-lite")
+    candidate_models = [primary] + [m for m in ("gemini-flash-latest", "gemini-3.5-flash-lite") if m != primary]
+
+    payload = {
+        "system_instruction": {
+            "parts": [{"text": system_prompt(cfg)}]
+        },
+        "contents": [{
+            "parts": [{"text": f"From: {email.sender}\nSubject: {email.subject}\n\n{email.body}"}]
+        }],
+        "generationConfig": {
+            "response_mime_type": "application/json",
+            "response_schema": schema,
+            "maxOutputTokens": cfg.get("model", {}).get("max_tokens", 800),
+        },
+    }
+
+    last_err = None
+    for model in candidate_models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={gemini_key}"
+        for attempt in range(3):
+            try:
+                resp = requests.post(url, json=payload, timeout=30)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    part_text = data["candidates"][0]["content"]["parts"][0]["text"]
+                    result = json.loads(part_text)
+                    return Decision(result["template_id"], result.get("fields", {}), result.get("reason", ""))
+                elif resp.status_code in (503, 429) and attempt < 2:
+                    time.sleep(1.5 * (attempt + 1))
+                    continue
+                else:
+                    last_err = f"Gemini {model} error ({resp.status_code}): {resp.text}"
+                    break
+            except Exception as ex:
+                last_err = str(ex)
+                break
+
+    raise RuntimeError(last_err or "All Gemini models failed")
+
+
+def decide_with_ai(email: Email, cfg: dict) -> Decision:
+    """Tries Gemini first, with Claude as fallback."""
+    if os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"):
+        try:
+            return decide_with_gemini(email, cfg)
+        except Exception as e:
+            print(f"[Gemini error: {e}. Falling back to Claude...]", file=sys.stderr)
+
+    return decide_with_claude(email, cfg)
+
+
 def decide_with_claude(email: Email, cfg: dict) -> Decision:
     import anthropic
 
@@ -168,7 +253,7 @@ def process(email: Email, cfg: dict, mock: bool) -> Decision:
     blocked = guardrail_check(email, cfg)
     if blocked:
         return Decision(ESCALATE, reason=blocked)
-    d = decide_mock(email, cfg) if mock else decide_with_claude(email, cfg)
+    d = decide_mock(email, cfg) if mock else decide_with_ai(email, cfg)
     return render(d, email, cfg)
 
 

@@ -24,8 +24,8 @@ pip install -r requirements.txt
 # 1. Offline demo, no keys needed (rule-based stand-in for Claude)
 python drafter.py --sample --mock --test-week
 
-# 2. With Claude
-export ANTHROPIC_API_KEY=sk-ant-...
+# 2. With Gemini (or Claude fallback)
+# Set GEMINI_API_KEY in .env or export GEMINI_API_KEY=... / ANTHROPIC_API_KEY=...
 python drafter.py --sample --test-week
 
 # 3. Real Gmail inbox -> drafts
