@@ -87,10 +87,10 @@ class Decision:
 # ---------- guardrails ----------
 
 def guardrail_check(email: Email, cfg: dict) -> str | None:
-    """Deterministic pre-check: anything about money/legal never reaches the model."""
+    """Deterministic pre-check: high-risk security, banking change, or legal disputes never reach the model."""
     text = f"{email.subject} {email.body}".lower()
-    hits = [w for w in cfg["guardrails"]["escalate_if"] if re.search(rf"\b{w}\w*", text)]
-    return f"guardrail keywords: {', '.join(hits)}" if hits else None
+    hits = [w for w in cfg["guardrails"]["escalate_if"] if w.lower() in text]
+    return f"guardrail triggers: {', '.join(hits)}" if hits else None
 
 
 # ---------- Claude decision (forced tool call = structured output) ----------
@@ -119,14 +119,18 @@ def build_tool(cfg: dict) -> dict:
 
 def system_prompt(cfg: dict) -> str:
     lines = [
-        f"You triage inbound emails for {cfg['client']['name']}.",
-        f"Service area: {', '.join(cfg['service_area'])}.",
-        "Choose exactly one template, or ESCALATE if none clearly fits or you are unsure.",
-        "Fill only the chosen template's blanks, briefly and factually, using only what the email says.",
-        "Never invent prices, dates, or promises. For suggested_slot, echo the customer's stated availability"
-        " or write 'a time that suits you'. For missing_items, a short bulleted list.",
+        f"You triage inbound emails and draft professional replies/invoices for {cfg['client']['name']}.",
+        f"Core expertise: {', '.join(cfg.get('service_area', []))}.",
+        "Important rules:",
+        "1. Choose exactly one template, or ESCALATE if there is a security hazard, suspicious bank change, legal dispute, or if unsure.",
+        "2. If the client asks for an invoice, payment details, or milestone billing, pick 'invoice_draft'.",
+        "3. Fill only the chosen template's blanks factually and concisely using ONLY facts stated in the email.",
+        "4. For new_project_quote: 'project_summary' (short subject/topic), 'suggested_next_step' (e.g. 'I would be happy to jump on a quick 15-minute discovery call this Thursday to review your technical specs and milestones.').",
+        "5. For invoice_draft: 'project_summary' (project/milestone name), 'invoice_description' (e.g. 'Milestone deliverables completed & approved'), 'amount' (e.g. '$1,800' or as stated in email), 'payment_terms' ('Due upon receipt').",
+        "6. For need_more_info: 'missing_items' (bullet list of missing specifications like tech stack, timeline, budget, or architecture).",
+        "7. For out_of_scope: 'project_summary' (inquiry subject), 'service_focus' ('AI automation and full-stack software development').",
         "",
-        "Templates:",
+        "Available Templates:",
     ]
     for t in cfg["templates"]:
         lines.append(f"- {t['id']}: {t['use_when']} Blanks: {', '.join(t['fields'])}")
@@ -224,15 +228,50 @@ def decide_with_claude(email: Email, cfg: dict) -> Decision:
 
 def decide_mock(email: Email, cfg: dict) -> Decision:
     """Rule-based stand-in so the pipeline can be demoed/tested without an API key."""
-    text = email.body.lower()
-    town = next((a for a in cfg["service_area"] if a.lower() in text), None)
-    other = re.search(r"in ([A-Z][a-z]+(?: [A-Z][a-z]+)?)", email.body)
-    if not town and other:
-        return Decision("out_of_area", {"town": other.group(1), "job_summary": email.subject.lower()}, "town not in area")
-    if len(text.split()) < 8:
-        return Decision("need_more_info", {"missing_items": "- your address\n- what the job involves"}, "too vague")
-    return Decision("new_quote", {"town": town or "your area", "job_summary": email.subject.lower(),
-                                  "suggested_slot": "an afternoon this week"}, "quote request")
+    text = f"{email.subject} {email.body}".lower()
+
+    # 1. Invoice or billing request
+    if "invoice" in text or "milestone" in text or "payment" in text or "bill" in text:
+        amt_match = re.search(r"\$[\d,]+", email.body)
+        amount = amt_match.group(0) if amt_match else "As agreed"
+        return Decision(
+            "invoice_draft",
+            {
+                "project_summary": email.subject.replace("Invoice for ", "").replace("Invoice - ", ""),
+                "invoice_description": "Approved project milestone deliverables",
+                "amount": amount,
+                "payment_terms": "Due upon receipt via standard agreed method",
+            },
+            "Client requested milestone invoice",
+        )
+
+    # 2. Too brief / vague
+    if len(email.body.split()) < 12:
+        return Decision(
+            "need_more_info",
+            {
+                "missing_items": "- Core features & technical requirements\n- Preferred tech stack & integrations\n- Target timeline & budget range"
+            },
+            "Inquiry lacks essential project specifications",
+        )
+
+    # 3. Out of scope
+    if any(k in text for k in ("plumbing", "hardware repair", "electrician", "roofing")):
+        return Decision(
+            "out_of_scope",
+            {"project_summary": email.subject, "service_focus": "AI Automation and Full-Stack Engineering"},
+            "Request is outside core software & AI services",
+        )
+
+    # 4. Standard project quote
+    return Decision(
+        "new_project_quote",
+        {
+            "project_summary": email.subject,
+            "suggested_next_step": "I would be glad to hop on a 15-minute discovery call this Thursday to discuss the architecture and implementation details.",
+        },
+        "Client requesting new project proposal / quote",
+    )
 
 
 # ---------- rendering ----------

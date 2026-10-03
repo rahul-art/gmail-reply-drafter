@@ -1,52 +1,67 @@
-# Gmail Reply Drafter
+# AI Gmail Reply & Invoice Drafter (Human-in-the-Loop)
 
-A small, config-driven Claude agent that reads a business inbox, picks one of the **client's own reply templates**, fills in its blanks, and saves the result as a **Gmail draft**. It never sends anything. A person reviews every draft and sends it themselves.
+A config-driven AI agent that reads an inbox, selects or drafts tailored replies/invoices using **structured templates**, and saves them directly as **Gmail drafts** with thread continuity. 
 
-## How it works
+> **Important**: This agent **never sends emails automatically**. Every draft is saved in Gmail under the `AI-Drafted` label for human review, verification, and manual approval before sending.
+
+## Workflow
 
 ```
-inbox ──► guardrail check ──► Claude picks template + fills blanks ──► render client's template ──► Gmail draft + label
-              │ (money/legal words)          │ (unsure / blanks missing)
-              └──────────► ESCALATE ◄─────────┘   (labelled, no draft)
+inbox ──► guardrail check ──► AI picks template + fills blanks ──► render template ──► Gmail draft + label
+              │ (phishing / bank change)       │ (unsure / blanks missing)
+              └──────────► ESCALATE ◄──────────┘   (labeled, no draft)
 ```
 
-- **The config sets it up, not the code.** Client name, templates, service area, the Gmail search and the guardrails all live in `config.yaml`. A new client means a new config, with no code changes.
-- **The client's voice stays theirs.** Claude doesn't write the email. It picks a template and fills the blanks through a forced tool call (structured output). The template text goes out exactly as the client wrote it.
-- **Money and legal emails never reach the model.** Anything mentioning invoices, refunds, payments, banks, complaints or contracts is escalated by a deterministic keyword check before any AI call.
-- **No half-filled drafts.** If Claude leaves a blank empty, the email is escalated instead.
-- **Test-week mode.** Run it against known cases. It reports matched/total and writes `mismatches.csv` (case, expected, actual, reason) for review.
+- **Invoices & Proposals on Autopilot**: When a client requests milestone billing or an invoice, the AI drafts the milestone details, terms, and amounts, leaving it ready for quick verification and 1-click sending.
+- **Config-Driven Architecture**: Personal branding, service domains, templates, and guardrail rules live in `config.yaml`.
+- **Zero Hallucination / Half-Filled Drafts**: Uses enforced JSON schema structured output. If critical details are absent, it safely falls back to a scoping request (`need_more_info`) or escalates.
+- **Strict Security Guardrails**: Phishing attempts, fraudulent bank/wire account changes, chargebacks, and legal threats are intercepted by deterministic rules before hitting the AI model.
+- **Multi-Model Resilience**: Primary support for Google Gemini (`gemini-3.1-flash-lite`, `gemini-flash-latest`) with automatic retry and seamless fallback to Anthropic Claude.
 
-## Run it
+---
 
+## Getting Started
+
+### 1. Install Dependencies
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+```
 
-# 1. Offline demo, no keys needed (rule-based stand-in for Claude)
+### 2. Configure API Keys
+Add your API keys to `.env` (automatically loaded, ignored by Git):
+```bash
+GEMINI_API_KEY=your_gemini_api_key_here
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+```
+
+### 3. Run Offline or Against Test Cases
+```bash
+# Offline demo with mock rule-based stand-in
 python drafter.py --sample --mock --test-week
 
-# 2. With Gemini (or Claude fallback)
-# Set GEMINI_API_KEY in .env or export GEMINI_API_KEY=... / ANTHROPIC_API_KEY=...
+# With real AI (Gemini or Claude fallback)
 python drafter.py --sample --test-week
-
-# 3. Real Gmail inbox -> drafts
-#    Google Cloud Console: enable the Gmail API, create an OAuth "Desktop app" client,
-#    and save it as credentials.json in this folder. The first run opens a browser to consent.
-python drafter.py --gmail
 ```
 
-To use it with your own Gmail, change `service_area` and the templates in `config.yaml` to match your test emails, or send yourself a few test emails.
+### 4. Connect to Live Gmail
+1. In [Google Cloud Console](https://console.cloud.google.com/), enable the **Gmail API**.
+2. Create an **OAuth 2.0 Desktop Client ID** and download it as `credentials.json` into this directory.
+3. Run the drafter:
+   ```bash
+   python drafter.py --gmail
+   ```
+4. Complete the one-time browser consent screen. The agent will fetch unread inquiries, generate drafts in your Gmail threads, and apply the `AI-Drafted` label.
 
-## Files
+---
 
-| File | What it is |
+## File Structure
+
+| File | Description |
 |---|---|
-| `drafter.py` | The pipeline: guardrails, Claude tool call, rendering, Gmail drafts, test-week log |
-| `config.yaml` | Client setup filled from a (sample) mapping session |
-| `templates/*.md` | The client's own reply templates |
-| `sample_emails.json` | Four test cases, including one that must escalate |
-
-## Security notes
-
-- OAuth scope is `gmail.modify` (read, label, draft). The code has no send call anywhere.
-- `credentials.json` and `token.json` stay on the machine running the tool. Add them to `.gitignore`.
-- Email content goes only to the Claude API for the decision. Nothing is written to disk except the mismatch log, which holds subjects and decisions only.
+| `drafter.py` | Pipeline: guardrail screening, structured AI decision, template rendering, and Gmail draft creation |
+| `config.yaml` | Service definitions, reply templates, signature, and security guardrails |
+| `templates/*.md` | Templates for project proposals, invoice drafts, scoping clarification, and out-of-scope replies |
+| `sample_emails.json` | Sample test cases covering project inquiries, invoice requests, and security escalations |
+| `LOOM_SCRIPT.md` | 75-second video walkthrough script |

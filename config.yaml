@@ -1,12 +1,12 @@
-# Client config — filled from a (sample) mapping session.
+# Configuration for Rahul Danu - AI Solutions & Software Engineering
 client:
-  name: "Acme Plumbing (sample client)"
-  reviewer: "Priya"            # the human who reviews and sends every draft
-  signature: "Priya\nAcme Plumbing | (555) 010-2233"
+  name: "Rahul Danu | AI Solutions & Software Engineering"
+  reviewer: "Rahul Danu"            # the human who reviews and approves every draft
+  signature: "Best regards,\nRahul Danu\nFull-Stack & AI Automation Specialist\ngithub.com/rahul-art"
 
 workflow:
-  id: quote_request_replies
-  gmail_query: "is:unread newer_than:7d -category:promotions"
+  id: client_inbox_triage
+  gmail_query: "is:unread newer_than:7d -category:promotions -category:social"
   max_emails_per_run: 20
   label_after_draft: "AI-Drafted"   # label added so nothing is drafted twice
 
@@ -17,19 +17,30 @@ model:
   max_tokens: 800
 
 templates:
-  - id: new_quote
-    file: templates/new_quote.md
-    use_when: "Customer asks for a price or quote for a job."
+  - id: new_project_quote
+    file: templates/new_project_quote.md
+    use_when: "Client reaches out with a project inquiry, software development need, or AI automation request."
+  - id: invoice_draft
+    file: templates/invoice_draft.md
+    use_when: "Client requests an invoice, milestone billing, payment details, or confirmation of completed work."
   - id: need_more_info
     file: templates/need_more_info.md
-    use_when: "Customer request is too vague to quote (no address, no job details, no photos)."
-  - id: out_of_area
-    file: templates/out_of_area.md
-    use_when: "Customer location is outside the service area."
+    use_when: "Client inquiry is too vague or lacks critical specifications (tech stack, timeline, scope, or requirements)."
+  - id: out_of_scope
+    file: templates/out_of_scope.md
+    use_when: "Client request falls outside core technical expertise (e.g. physical plumbing, legacy hardware, non-tech tasks)."
 
-service_area: ["Springfield", "Shelbyville", "Ogdenville"]
+service_area: ["AI Agents", "Full-Stack Web Development", "Workflow Automation", "API Integration", "Python / Next.js / TypeScript"]
 
-# Hard rules. The code enforces these too; they're repeated here so the reviewer can see them.
+# Hard rules. High-risk security hazards never reach the model; they escalate immediately for manual inspection.
 guardrails:
-  never_send: true                 # drafts only; a human sends
-  escalate_if: ["invoice", "refund", "payment", "bank", "complaint", "legal", "contract"]
+  never_send: true                 # drafts only; Rahul reviews and approves each one before it goes out
+  escalate_if:
+    - "wire transfer"
+    - "bank account change"
+    - "crypto"
+    - "chargeback"
+    - "dispute"
+    - "lawsuit"
+    - "legal counsel"
+    - "unauthorized"

@@ -1,19 +1,20 @@
-# 60–90 second Loom script
+# 60–90 second Loom script: AI Email & Invoice Reply Drafter
 
 **0:00 – Hook (show config.yaml)**
-"This is a Gmail reply drafter I built with Claude. Everything client-specific lives in this one config file: their templates, service area and guardrails. A new client means a new config, not new code."
+"This is an automated Gmail reply and invoice drafter I built using structured AI generation. Everything runs from this single config file: my services, reply templates, signature, and security guardrails. It never sends anything on its own — human approval is built directly into the workflow."
 
-**0:15 – The templates**
-"These are the client's own replies. Claude never rewrites them. It only picks one and fills in the blanks, through a forced tool call, so the output is always structured."
+**0:15 – The templates & human approval**
+"The system uses structured templates for project quotes, invoice drafts, and scope clarifications. When a client requests an invoice or milestone billing, the AI extracts the milestone and amount, drafts the response, and places it directly into my Gmail drafts for my review and approval before anything leaves the inbox."
 
-**0:25 – Run it (terminal: `python drafter.py --sample --test-week`)**
-"Four real-looking emails. A quote request gets the quote template. A vague one asks for details. An out-of-area one gets a polite no. And this one, about an invoice refund to a new bank account, gets escalated. It never reaches the model, because money and bank emails are blocked by a hard rule."
+**0:30 – Run it (terminal: `python drafter.py --sample --test-week`)**
+"Let's run it against four real-world client scenarios.
+1. A technical inquiry gets an immediate proposal draft with an invitation to a discovery call.
+2. A vague request prompts for specific architecture and budget details.
+3. An approved milestone request drafts the exact invoice breakdown with terms.
+4. And a suspicious email requesting an urgent wire transfer bank change is stopped immediately by the security guardrail without ever touching the model."
 
-**0:50 – Gmail (optional: show the Drafts folder after `--gmail`)**
-"On a real inbox it only creates drafts and adds a label. Nothing gets sent. A person reviews and sends every one."
-
-**1:05 – Test week**
-"Test-week mode checks decisions against known cases and logs every mismatch to a CSV, so a reviewer can go through it in minutes."
+**0:55 – Gmail Inbox & Drafts (show Gmail Drafts with `AI-Drafted`)**
+"When run on live Gmail with `--gmail`, it attaches to the existing email thread, generates a complete draft, and tags the message with an `AI-Drafted` label. All I do is open Gmail, review the numbers or proposal, and click Send."
 
 **1:15 – Close**
-"Config-driven, the client's own voice, humans send, and every mismatch is logged. That's how I'd approach your installs."
+"Deterministic security guardrails, structured AI drafting for proposals and invoices, and 100% human-in-the-loop approval. That ensures speed without sacrificing accuracy or control."
